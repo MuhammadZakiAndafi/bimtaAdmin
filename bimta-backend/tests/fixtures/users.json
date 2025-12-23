@@ -1,0 +1,54 @@
+{
+  "admin": {
+    "user_id": "admin001",
+    "nama": "Test Admin",
+    "no_whatsapp": "081234567890",
+    "password": "Admin123!",
+    "role": "admin",
+    "status_user": "active"
+  },
+  "dosen": [
+    {
+      "user_id": "test_dosen_001",
+      "nama": "Dr. Test Dosen",
+      "no_whatsapp": "081234567891",
+      "password": "Dosen123!",
+      "role": "dosen",
+      "status_user": "active"
+    },
+    {
+      "user_id": "test_dosen_002",
+      "nama": "Prof. Test Dosen 2",
+      "no_whatsapp": "081234567893",
+      "password": "Dosen123!",
+      "role": "dosen",
+      "status_user": "active"
+    }
+  ],
+  "mahasiswa": [
+    {
+      "user_id": "test_mahasiswa_001",
+      "nama": "Test Mahasiswa Satu",
+      "no_whatsapp": "081234567892",
+      "password": "Mahasiswa123!",
+      "role": "mahasiswa",
+      "status_user": "active"
+    },
+    {
+      "user_id": "test_mahasiswa_002",
+      "nama": "Test Mahasiswa Dua",
+      "no_whatsapp": "081234567894",
+      "password": "Mahasiswa123!",
+      "role": "mahasiswa",
+      "status_user": "active"
+    }
+  ],
+  "inactive_user": {
+    "user_id": "test_inactive_001",
+    "nama": "Inactive User",
+    "no_whatsapp": "081234567895",
+    "password": "Test123!",
+    "role": "mahasiswa",
+    "status_user": "inactive"
+  }
+}
