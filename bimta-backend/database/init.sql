@@ -1,8 +1,8 @@
 -- Create Database
-CREATE DATABASE bimta_db;
+CREATE DATABASE bimta_test;
 
 -- Connect to database
-\c bimta_db;
+\c bimta_test;
 
 -- Create ENUM Types
 CREATE TYPE role_enum AS ENUM ('mahasiswa', 'dosen', 'admin');
