@@ -25,7 +25,7 @@ async function globalSetup() {
     if (!adminExists) {
       console.log('👤 Creating test admin user...');
       const hashedPassword = await bcrypt.hash(
-        process.env.TEST_ADMIN_PASSWORD || 'Admin123!',
+        process.env.TEST_ADMIN_PASSWORD || 'sandi123',
         12
       );
 

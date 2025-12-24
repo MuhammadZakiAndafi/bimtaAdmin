@@ -8,7 +8,7 @@ test.describe('Performance Tests', () => {
   test.beforeAll(async () => {
     api = new APIHelper();
     await api.init();
-    await api.login('admin001', 'Admin123!');
+    await api.login('admin001', 'sandi123');
   });
 
   test.afterAll(async () => {
@@ -50,7 +50,7 @@ test.describe('Performance Tests', () => {
       
       const startTime = Date.now();
       
-      await testApi.login('admin001', 'Admin123!');
+      await testApi.login('admin001', 'sandi123');
       
       const endTime = Date.now();
       const responseTime = endTime - startTime;
@@ -266,7 +266,7 @@ test.describe('Performance Tests', () => {
       // Test key endpoints
       const endpoints = [
         { name: 'Health Check', path: '/api/health' },
-        { name: 'Login', method: 'login', user: 'admin001', pass: 'Admin123!' },
+        { name: 'Login', method: 'login', user: 'admin001', pass: 'sandi123' },
         { name: 'Dashboard', path: '/api/dashboard' },
         { name: 'User List', path: '/api/users' },
         { name: 'Referensi List', path: '/api/referensi' },

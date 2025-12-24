@@ -16,7 +16,7 @@ async function setupTestUser() {
     console.log('🔧 Setting up test users...\n');
 
     // Hash password
-    const hashedPassword = await bcrypt.hash('Admin123!', 12);
+    const hashedPassword = await bcrypt.hash('sandi123', 12);
 
     // Check if admin001 exists
     const checkAdmin = await pool.query(

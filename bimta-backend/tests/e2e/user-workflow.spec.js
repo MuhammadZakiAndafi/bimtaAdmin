@@ -9,7 +9,7 @@ test.describe('User Management Complete Workflow', () => {
   test.beforeAll(async () => {
     api = new APIHelper();
     await api.init();
-    await api.login('admin001', 'Admin123!');
+    await api.login('admin001', 'sandi123');
   });
 
   test.afterAll(async () => {
