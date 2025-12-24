@@ -17,6 +17,8 @@ CREATE TABLE referensi_ta (
     nim_mahasiswa VARCHAR(25) PRIMARY KEY,
     nama_mahasiswa VARCHAR(255) NOT NULL,
     judul VARCHAR(255) NOT NULL,
+    topik VARCHAR(255) NOT NULL,
+    tahun
     doc_url TEXT NOT NULL,
     created_at TIMESTAMP NOT NULL,
     updated_at TIMESTAMP NOT NULL

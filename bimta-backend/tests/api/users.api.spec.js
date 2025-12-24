@@ -10,7 +10,7 @@ test.describe('User Management API Tests', () => {
     await api.init();
     await api.login(
       process.env.TEST_ADMIN_ID || 'admin001',
-      process.env.TEST_ADMIN_PASSWORD || 'Admin123!'
+      process.env.TEST_ADMIN_PASSWORD || 'sandi123'
     );
   });
 
@@ -287,7 +287,7 @@ test.describe('User Management API Tests', () => {
       // Re-login for other tests
       await api.login(
         process.env.TEST_ADMIN_ID || 'admin001',
-        process.env.TEST_ADMIN_PASSWORD || 'Admin123!'
+        process.env.TEST_ADMIN_PASSWORD || 'sandi123'
       );
     });
   });

@@ -17,7 +17,7 @@ test.describe('Authentication API Tests', () => {
     test('should login successfully with valid admin credentials', async () => {
       const { response, data } = await api.login(
         process.env.TEST_ADMIN_ID || 'admin001',
-        process.env.TEST_ADMIN_PASSWORD || 'Admin123!'
+        process.env.TEST_ADMIN_PASSWORD || 'sandi123'
       );
 
       expect(response.ok()).toBeTruthy();
@@ -44,7 +44,7 @@ test.describe('Authentication API Tests', () => {
 
     test('should fail with missing user_id', async () => {
       const response = await api.post('/api/auth/login', {
-        password: 'Admin123!',
+        password: 'sandi123',
       });
 
       const data = await response.json();
@@ -93,7 +93,7 @@ test.describe('Authentication API Tests', () => {
     test.beforeEach(async () => {
       await api.login(
         process.env.TEST_ADMIN_ID || 'admin001',
-        process.env.TEST_ADMIN_PASSWORD || 'Admin123!'
+        process.env.TEST_ADMIN_PASSWORD || 'sandi123'
       );
     });
 

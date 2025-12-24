@@ -16,7 +16,7 @@ test.describe('Laporan Generation Complete Workflow', () => {
     api = new APIHelper();
     db = new DBHelper();
     await api.init();
-    await api.login('admin001', 'Admin123!');
+    await api.login('admin001', 'sandi123');
 
     // Setup test data
     console.log('🔧 Setting up test data...');
