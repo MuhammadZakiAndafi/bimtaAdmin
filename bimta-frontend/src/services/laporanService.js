@@ -7,6 +7,14 @@ export const laporanService = {
     return response.data;
   },
 
+  exportLaporan: async (params) => {
+    const queryParams = new URLSearchParams(params);
+    const response = await api.get(`/laporan/export?${queryParams}`, {
+      responseType: 'blob', // Important untuk download file
+    });
+    return response;
+  },
+
   getStatistik: async (params = {}) => {
     const queryParams = new URLSearchParams(params);
     const response = await api.get(`/laporan/statistik?${queryParams}`);

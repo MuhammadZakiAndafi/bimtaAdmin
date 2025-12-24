@@ -299,19 +299,4 @@ test.describe('Security Tests', () => {
       expect(responseText).not.toContain('.js:');
     });
   });
-
-  // test.describe('File Upload Security (if implemented)', () => {
-  //   test('should reject non-PDF files for referensi', async () => {
-  //     // This test requires file upload implementation
-  //     test.skip('File upload testing not implemented yet');
-  //   });
-
-  //   test('should reject oversized files', async () => {
-  //     test.skip('File upload testing not implemented yet');
-  //   });
-
-  //   test('should reject files with malicious names', async () => {
-  //     test.skip('File upload testing not implemented yet');
-  //   });
-  // });
 });
