@@ -27,11 +27,20 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    const status = error.response ? error.response.status : null;
+    
+    const originalUrl = error.config ? error.config.url : '';
+    const isApiLogin = originalUrl.includes('login');
+
+    const isPageLogin = window.location.pathname === '/login';
+
+    if (status === 401 && !isApiLogin && !isPageLogin) {
+      console.warn('Sesi habis, memaksa logout...');
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       window.location.href = '/login';
     }
+
     return Promise.reject(error);
   }
 );
