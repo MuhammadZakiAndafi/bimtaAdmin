@@ -7,14 +7,35 @@ import { IoDocumentText, IoDownload } from 'react-icons/io5';
 
 const GenerateLaporan = () => {
   const [loading, setLoading] = useState(false);
+  const [exportLoading, setExportLoading] = useState(false);
   const [laporanData, setLaporanData] = useState(null);
+  
+  const currentYear = new Date().getFullYear();
+  const currentMonth = new Date().getMonth() + 1;
   
   const [formData, setFormData] = useState({
     jenis_laporan: 'bulanan',
-    start_date: '',
-    end_date: '',
+    bulan: currentMonth,
+    tahun: currentYear,
     program_studi: '',
   });
+
+  const months = [
+    { value: 1, label: 'Januari' },
+    { value: 2, label: 'Februari' },
+    { value: 3, label: 'Maret' },
+    { value: 4, label: 'April' },
+    { value: 5, label: 'Mei' },
+    { value: 6, label: 'Juni' },
+    { value: 7, label: 'Juli' },
+    { value: 8, label: 'Agustus' },
+    { value: 9, label: 'September' },
+    { value: 10, label: 'Oktober' },
+    { value: 11, label: 'November' },
+    { value: 12, label: 'Desember' },
+  ];
+
+  const years = Array.from({ length: 10 }, (_, i) => currentYear - i);
 
   const handleChange = (e) => {
     setFormData({
@@ -37,19 +58,68 @@ const GenerateLaporan = () => {
     }
   };
 
-  const handleExportPDF = () => {
-    // Simulasi export PDF
-    alert('Fitur export PDF akan segera tersedia!');
+  const handleExportExcel = async () => {
+    if (!laporanData) {
+      alert('Silakan generate laporan terlebih dahulu');
+      return;
+    }
+
+    setExportLoading(true);
+    
+    try {
+      const response = await laporanService.exportLaporan(formData);
+      
+      // Create blob dari response
+      const blob = new Blob([response.data], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      });
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      
+      // Generate filename
+      const monthName = months.find(m => m.value === parseInt(formData.bulan))?.label || '';
+      const filename = `Laporan_${formData.jenis_laporan}_${monthName}_${formData.tahun}.xlsx`;
+      link.setAttribute('download', filename);
+      
+      // Trigger download
+      document.body.appendChild(link);
+      link.click();
+      
+      // Cleanup
+      link.parentNode.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      alert('Laporan berhasil diexport!');
+    } catch (error) {
+      console.error('Export error:', error);
+      alert(error.response?.data?.message || 'Gagal export laporan');
+    } finally {
+      setExportLoading(false);
+    }
   };
 
   const handleResetFilter = () => {
     setFormData({
       jenis_laporan: 'bulanan',
-      start_date: '',
-      end_date: '',
+      bulan: currentMonth,
+      tahun: currentYear,
       program_studi: '',
     });
     setLaporanData(null);
+  };
+
+  const getPeriodeText = () => {
+    if (!laporanData) return '';
+    
+    if (formData.jenis_laporan === 'bulanan') {
+      const monthName = months.find(m => m.value === parseInt(formData.bulan))?.label;
+      return `${monthName} ${formData.tahun}`;
+    } else {
+      return `Tahun ${formData.tahun}`;
+    }
   };
 
   return (
@@ -59,7 +129,7 @@ const GenerateLaporan = () => {
         <h3 className="text-lg font-semibold text-gray-800 mb-4">Parameter Laporan</h3>
         
         <form onSubmit={handleGenerate}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
             {/* Jenis Laporan */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -76,8 +146,48 @@ const GenerateLaporan = () => {
               </select>
             </div>
 
-            {/* Program Studi (optional) */}
+            {/* Bulan - Only show for bulanan */}
+            {formData.jenis_laporan === 'bulanan' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Bulan
+                </label>
+                <select
+                  name="bulan"
+                  value={formData.bulan}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                >
+                  {months.map(month => (
+                    <option key={month.value} value={month.value}>
+                      {month.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Tahun */}
             <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Tahun
+              </label>
+              <select
+                name="tahun"
+                value={formData.tahun}
+                onChange={handleChange}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              >
+                {years.map(year => (
+                  <option key={year} value={year}>
+                    {year}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Program Studi */}
+            {/* <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Program Studi (Opsional)
               </label>
@@ -92,35 +202,7 @@ const GenerateLaporan = () => {
                 <option value="Sistem Informasi">Sistem Informasi</option>
                 <option value="Teknik Komputer">Teknik Komputer</option>
               </select>
-            </div>
-
-            {/* Start Date */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Tanggal Mulai
-              </label>
-              <input
-                type="date"
-                name="start_date"
-                value={formData.start_date}
-                onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              />
-            </div>
-
-            {/* End Date */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Tanggal Akhir
-              </label>
-              <input
-                type="date"
-                name="end_date"
-                value={formData.end_date}
-                onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              />
-            </div>
+            </div> */}
           </div>
 
           <div className="flex gap-3">
@@ -161,13 +243,7 @@ const GenerateLaporan = () => {
                 Laporan {laporanData.jenis_laporan === 'bulanan' ? 'Bulanan' : 'Semester'}
               </h3>
               <p className="text-sm text-gray-600 mt-1">
-                {laporanData.periode.start_date && laporanData.periode.end_date && (
-                  <>
-                    Periode: {new Date(laporanData.periode.start_date).toLocaleDateString('id-ID')} 
-                    {' - '}
-                    {new Date(laporanData.periode.end_date).toLocaleDateString('id-ID')}
-                  </>
-                )}
+                Periode: {getPeriodeText()}
               </p>
               <p className="text-sm text-gray-600">
                 Total Data: {laporanData.total_records} records
@@ -177,9 +253,10 @@ const GenerateLaporan = () => {
             <Button
               variant="success"
               icon={<IoDownload size={20} />}
-              onClick={handleExportPDF}
+              onClick={handleExportExcel}
+              disabled={exportLoading}
             >
-              Export PDF
+              {exportLoading ? 'Exporting...' : 'Export Excel'}
             </Button>
           </div>
 
