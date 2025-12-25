@@ -20,6 +20,8 @@ const ReferensiTA = () => {
     nim_mahasiswa: '',
     nama_mahasiswa: '',
     judul: '',
+    topik: '',
+    tahun: new Date().getFullYear(),
     document: null,
   });
 
@@ -51,6 +53,8 @@ const ReferensiTA = () => {
         nim_mahasiswa: referensi.nim_mahasiswa,
         nama_mahasiswa: referensi.nama_mahasiswa,
         judul: referensi.judul,
+        topik: referensi.topik,
+        tahun: referensi.tahun,
         document: null,
       });
     } else {
@@ -58,6 +62,8 @@ const ReferensiTA = () => {
         nim_mahasiswa: '',
         nama_mahasiswa: '',
         judul: '',
+        topik: '',
+        tahun: new Date().getFullYear(),
         document: null,
       });
     }
@@ -82,9 +88,17 @@ const ReferensiTA = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
+    // Validasi field topik dan tahun
+    if (!formData.topik || !formData.tahun) {
+      alert('Topik dan Tahun harus diisi');
+      return;
+    }
+    
     const data = new FormData();
     data.append('nama_mahasiswa', formData.nama_mahasiswa);
     data.append('judul', formData.judul);
+    data.append('topik', formData.topik);
+    data.append('tahun', String(formData.tahun)); // Convert to string
     
     if (modalMode === 'create') {
       data.append('nim_mahasiswa', formData.nim_mahasiswa);
@@ -97,6 +111,12 @@ const ReferensiTA = () => {
       if (formData.document) {
         data.append('document', formData.document);
       }
+    }
+    
+    // Debug: Log FormData contents
+    console.log('FormData contents:');
+    for (let pair of data.entries()) {
+      console.log(pair[0] + ': ' + pair[1]);
     }
 
     try {
@@ -128,7 +148,7 @@ const ReferensiTA = () => {
   };
 
   const handleViewDocument = (docUrl) => {
-    window.open(`http://localhost:5000${docUrl}`, '_blank');
+    window.open(docUrl, '_blank');
   };
 
   return (
@@ -140,7 +160,7 @@ const ReferensiTA = () => {
             <SearchBar
               value={search}
               onChange={setSearch}
-              placeholder="Cari referensi (Judul, Nama, Tag, dll...)"
+              placeholder="Cari referensi (Judul, Nama, Topik, dll...)"
             />
           </div>
           
@@ -163,53 +183,56 @@ const ReferensiTA = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {referensiList.length > 0 ? (
             referensiList.map((ref) => (
-              <div key={ref.nim_mahasiswa} className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow overflow-hidden">
-                {/* Header */}
-                <div className="bg-primary-500 p-4 flex items-center justify-center">
-                  <IoDocument size={48} className="text-white" />
-                </div>
-
+              <div key={ref.nim_mahasiswa} className="bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden border border-gray-100">
                 {/* Content */}
                 <div className="p-6">
-                  <h3 className="font-semibold text-gray-900 mb-2 line-clamp-2 h-12">
+                  {/* Judul */}
+                  <h3 className="font-bold text-lg text-gray-900 mb-3 line-clamp-2 min-h-[56px]">
                     {ref.judul}
                   </h3>
                   
-                  <div className="space-y-2 mb-4">
-                    <div className="flex items-center text-sm text-gray-600">
-                      <span className="font-medium mr-2">Penulis:</span>
-                      <span>{ref.nama_mahasiswa}</span>
+                  {/* Info Grid */}
+                  <div className="space-y-3 mb-4">
+                    <div className="flex items-start gap-2">
+                      <span className="text-xs font-semibold text-gray-500 min-w-[70px]">Penulis:</span>
+                      <span className="text-sm text-gray-700 font-medium">{ref.nama_mahasiswa}</span>
                     </div>
-                    <div className="flex items-center text-sm text-gray-600">
-                      <span className="font-medium mr-2">NIM:</span>
-                      <span>{ref.nim_mahasiswa}</span>
+                    <div className="flex items-start gap-2">
+                      <span className="text-xs font-semibold text-gray-500 min-w-[70px]">NIM:</span>
+                      <span className="text-sm text-gray-700">{ref.nim_mahasiswa}</span>
                     </div>
-                    <div className="flex items-center text-sm text-gray-600">
-                      <span className="font-medium mr-2">Tahun:</span>
-                      <span>{new Date(ref.created_at).getFullYear()}</span>
+                    <div className="flex items-start gap-2">
+                      <span className="text-xs font-semibold text-gray-500 min-w-[70px]">Topik:</span>
+                      <span className="inline-block bg-primary-50 text-primary-700 px-3 py-1 rounded-full text-xs font-semibold">
+                        {ref.topik}
+                      </span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="text-xs font-semibold text-gray-500 min-w-[70px]">Tahun:</span>
+                      <span className="text-sm text-gray-700 font-medium">{ref.tahun}</span>
                     </div>
                   </div>
 
                   {/* Actions */}
-                  <div className="flex items-center gap-2 pt-4 border-t border-gray-200">
+                  <div className="flex items-center gap-2 pt-4 border-t border-gray-100">
                     <button
                       onClick={() => handleViewDocument(ref.doc_url)}
-                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-blue-50 text-blue-600 rounded hover:bg-blue-100 transition-colors"
+                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors font-medium text-sm"
                       title="Lihat Dokumen"
                     >
                       <IoEye size={18} />
-                      <span className="text-sm font-medium">Lihat</span>
+                      <span>Lihat</span>
                     </button>
                     <button
                       onClick={() => handleOpenModal('edit', ref)}
-                      className="flex items-center justify-center p-2 text-yellow-600 hover:bg-yellow-50 rounded transition-colors"
+                      className="flex items-center justify-center p-2.5 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
                       title="Edit"
                     >
                       <IoCreate size={20} />
                     </button>
                     <button
                       onClick={() => handleDelete(ref.nim_mahasiswa)}
-                      className="flex items-center justify-center p-2 text-red-600 hover:bg-red-50 rounded transition-colors"
+                      className="flex items-center justify-center p-2.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                       title="Hapus"
                     >
                       <IoTrash size={20} />
@@ -267,6 +290,27 @@ const ReferensiTA = () => {
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             />
           </div>
+
+          <Input
+            label="Topik"
+            name="topik"
+            value={formData.topik}
+            onChange={handleChange}
+            placeholder="Contoh: Machine Learning, Web Development, IoT"
+            required
+          />
+
+          <Input
+            label="Tahun"
+            name="tahun"
+            type="number"
+            value={formData.tahun}
+            onChange={handleChange}
+            placeholder="Contoh: 2024"
+            required
+            min="2000"
+            max={new Date().getFullYear() + 1}
+          />
           
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-1">
