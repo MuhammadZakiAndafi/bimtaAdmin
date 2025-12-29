@@ -9,7 +9,7 @@ describe('ReferensiTA Model', () => {
   });
 
   describe('findAll', () => {
-    test('harus mengambil semua data tanpa filter (default parameter)', async () => {
+    test('harus mengambil semua data tanpa filter', async () => {
       pool.query.mockResolvedValue({ rows: [{ id: 1 }] });
       
       const result = await ReferensiTA.findAll(); // Menguji default filters = {}

@@ -92,18 +92,17 @@ describe('DashboardController', () => {
       expect(mockNext).toHaveBeenCalledWith(mockError);
     });
 
-    test('harus menangani jika data bimbingan atau user kosong (Baris 11-21)', async () => {
+    test('harus menangani jika data bimbingan atau user kosong', async () => {
   Bimbingan.countByStatus.mockResolvedValue([]);
   User.countByRole.mockResolvedValue([]);
   Bimbingan.getRecentActivity.mockResolvedValue([]);
 
-  // Ganti .getStats menjadi .getDashboardData (atau sesuai nama di file .js Anda)
   await DashboardController.getDashboardData(mockReq, mockRes, mockNext);
 
   expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
 });
 
-test('harus menangkap error bimbingan (Baris 57-62)', async () => {
+test('harus menangkap error bimbingan', async () => {
   const error = new Error('Database Error');
   Bimbingan.getRecentActivity.mockRejectedValue(error);
 

@@ -3,7 +3,7 @@ const User = require('../models/User');
 const { comparePassword } = require('../utils/bcrypt');
 const { generateToken } = require('../utils/jwt');
 
-// 1. Mocking dependensi untuk mengisolasi logika Controller
+// 1. Mocking dependensi
 jest.mock('../models/User');
 jest.mock('../utils/bcrypt');
 jest.mock('../utils/jwt');
@@ -11,13 +11,13 @@ jest.mock('../utils/jwt');
 describe('AuthController', () => {
   let mockReq, mockRes, mockNext;
 
-  // 2. Setup mock request dan response sebelum setiap test dijalankan
+  // 2. Setup mock request dan response 
   beforeEach(() => {
     jest.clearAllMocks();
 
     mockReq = {
       body: {},
-      user: {}, // Digunakan untuk fungsi getProfile
+      user: {}, 
     };
     
     mockRes = {
