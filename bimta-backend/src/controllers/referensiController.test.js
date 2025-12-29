@@ -245,6 +245,29 @@ describe('ReferensiController', () => {
 
       expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
     });
+
+    test('harus return 404 jika referensi tidak ditemukan', async () => {
+      mockReq.params.nim = '999';
+      ReferensiTA.findById.mockResolvedValue(null);
+      await ReferensiController.updateReferensi(mockReq, mockRes, mockNext);
+      expect(mockRes.status).toHaveBeenCalledWith(404);
+    });
+    test('harus menggunakan data lama jika body kosong)', async () => {
+      mockReq.params.nim = '123';
+      mockReq.body = {}; // Mengosongkan body untuk memicu default value
+      const mockOld = { nim_mahasiswa: '123', nama_mahasiswa: 'Lama', judul: 'L', topik: 'L', tahun: 2024, doc_url: 'url' };
+      
+      ReferensiTA.findById.mockResolvedValue(mockOld);
+      ReferensiTA.update.mockResolvedValue({ ...mockOld });
+
+      await ReferensiController.updateReferensi(mockReq, mockRes, mockNext);
+      
+      // Memastikan data lama yang dikirim kembali ke model
+      expect(ReferensiTA.update).toHaveBeenCalledWith('123', expect.objectContaining({
+        nama_mahasiswa: 'Lama',
+        tahun: 2024
+      }));
+    });
   });
 
   // TEST UNTUK deleteReferensi 
