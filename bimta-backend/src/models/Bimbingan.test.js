@@ -12,7 +12,7 @@ describe('Bimbingan Model - Full Coverage Test', () => {
   });
 
   describe('findAll', () => {
-    test('harus mengambil semua data tanpa filter (Branch: All False)', async () => {
+    test('harus mengambil semua data tanpa filter', async () => {
       // Arrange
       pool.query.mockResolvedValue({ rows: [{ bimbingan_id: 1 }], rowCount: 1 });
 
@@ -60,7 +60,7 @@ describe('Bimbingan Model - Full Coverage Test', () => {
       );
     });
 
-    test('harus menangani kombinasi semua filter sekaligus (Branch: All True)', async () => {
+    test('harus menangani kombinasi semua filter sekaligus', async () => {
       pool.query.mockResolvedValue({ rows: [] });
       const filters = { 
         status_bimbingan: 'revisi', 

@@ -28,7 +28,6 @@ describe('LaporanController', () => {
     mockBufferData = Buffer.from('excel-data');
     mockWriteBuffer = jest.fn().mockResolvedValue(mockBufferData);
     
-    // Mocking Cell & Row untuk menangani Styling & Loop (Line 291-292)
     const mockCell = { style: {}, value: '', alignment: {}, border: {}, fill: {} };
     mockAddRow = jest.fn(() => ({ 
       eachCell: (cb) => { cb(mockCell, 1); }, // Menjalankan loop header & data
@@ -70,7 +69,6 @@ describe('LaporanController', () => {
       mockPoolQuery.mockResolvedValue({ rows: [{ nama_dosen: 'Dosen A' }] });
 
       await LaporanController.generateLaporan(mockReq, mockRes, mockNext);
-      // Memastikan WHERE AND terbentuk 
       expect(mockPoolQuery).toHaveBeenCalledWith(
         expect.stringContaining('WHERE p.datetime BETWEEN $1 AND $2 AND d.user_id LIKE $3'),
         ['2025-01-01', '2025-06-30', '%Informatika%']
@@ -85,12 +83,20 @@ describe('LaporanController', () => {
       await LaporanController.generateLaporan(mockReq, mockRes, mockNext);
       expect(mockNext).toHaveBeenCalledWith(err);
     });
+
+    test('harus menangani error database di generateLaporan', async () => {
+      mockReq.query = { jenis_laporan: 'bulanan' };
+      const err = new Error('Database Error');
+      mockPoolQuery.mockRejectedValue(err); // Paksa query gagal
+
+      await LaporanController.generateLaporan(mockReq, mockRes, mockNext);
+      expect(mockNext).toHaveBeenCalledWith(err);
+    });
   });
 
   describe('exportLaporanExcel', () => {
     test('harus mencakup loop Header & Row Styling', async () => {
       mockReq.query = { jenis_laporan: 'bulanan' };
-      // Menyertakan data dengan status berbeda untuk branch warna
       const mockRows = [
         { status_bimbingan: 'done', nim: '1' },
         { status_bimbingan: 'ongoing', nim: '2' }
@@ -108,6 +114,48 @@ describe('LaporanController', () => {
       await LaporanController.exportLaporanExcel(mockReq, mockRes, mockNext);
       expect(mockPoolQuery).toHaveBeenCalledWith(expect.stringContaining('WHERE d.user_id LIKE $1'), ['%TI%']);
     });
+
+    test('harus return 400 jika jenis_laporan kosong di export', async () => {
+      await LaporanController.exportLaporanExcel(mockReq, mockRes, mockNext);
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+    });
+
+    test('harus mencakup filter Semester lengkap dengan tanggal di export', async () => {
+      mockReq.query = { 
+        jenis_laporan: 'semester', 
+        start_date: '2025-01-01', 
+        end_date: '2025-06-30' 
+      };
+      mockPoolQuery.mockResolvedValue({ rows: [{ nama_dosen: 'Dosen A' }] });
+
+      await LaporanController.exportLaporanExcel(mockReq, mockRes, mockNext);
+      expect(mockPoolQuery).toHaveBeenCalledWith(expect.stringContaining('BETWEEN'), expect.any(Array));
+    });
+
+    test('harus return 404 jika data tidak ditemukan saat export', async () => {
+      mockReq.query = { jenis_laporan: 'bulanan' };
+      mockPoolQuery.mockResolvedValue({ rows: [] }); // Simulasi data kosong
+
+      await LaporanController.exportLaporanExcel(mockReq, mockRes, mockNext);
+      expect(mockRes.status).toHaveBeenCalledWith(404);
+    });
+
+    test('harus menangkap error di catch block exportLaporanExcel', async () => {
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      mockReq.query = { jenis_laporan: 'bulanan' };
+      const err = new Error('Excel Generation Failed');
+      mockPoolQuery.mockRejectedValue(err);
+
+      await LaporanController.exportLaporanExcel(mockReq, mockRes, mockNext);
+      expect(mockNext).toHaveBeenCalledWith(err);
+      consoleSpy.mockRestore();
+    });
+
+    test('harus return 400 jika jenis_laporan kosong saat export (Baris 131-132)', async () => {
+      mockReq.query = {}; // Kosongkan query
+      await LaporanController.exportLaporanExcel(mockReq, mockRes, mockNext);
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+    });
   });
 
   describe('getLaporanStatistik', () => {
@@ -115,6 +163,14 @@ describe('LaporanController', () => {
       mockPoolQuery.mockResolvedValue({ rows: [{ total: 1 }] });
       await LaporanController.getLaporanStatistik(mockReq, mockRes, mockNext);
       expect(mockRes.json).toHaveBeenCalled();
+    });
+
+    test('harus menangkap error database di getLaporanStatistik', async () => {
+      const err = new Error('Statistik Fail');
+      mockPoolQuery.mockRejectedValue(err);
+
+      await LaporanController.getLaporanStatistik(mockReq, mockRes, mockNext);
+      expect(mockNext).toHaveBeenCalledWith(err);
     });
   });
 });

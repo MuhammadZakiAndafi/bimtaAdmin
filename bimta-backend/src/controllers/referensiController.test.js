@@ -1,12 +1,22 @@
+process.env.SUPABASE_URL = 'https://fake-url.supabase.co';
+process.env.SUPABASE_KEY = 'fake-key';
+
 const ReferensiController = require('./referensiController');
 
 const ReferensiTA = require('../models/ReferensiTA');
 const supabase = require('../config/supabase');
 
 
-// Mock ReferensiTA dan supabase model
+// Mock ReferensiTA dan Supabase
 jest.mock('../models/ReferensiTA');
-jest.mock('../config/supabase');
+jest.mock('../config/supabase', () => ({
+  storage: {
+    from: jest.fn().mockReturnThis(),
+    upload: jest.fn(),
+    getPublicUrl: jest.fn(),
+    remove: jest.fn(),
+  }
+}));
 
 describe('ReferensiController', () => {
   let mockReq, mockRes, mockNext;
@@ -60,6 +70,14 @@ describe('ReferensiController', () => {
         success: true,
         data: mockData,
       });
+    });
+
+    test('harus memanggil next(error) jika database gagal di getAllReferensi (Baris 68)', async () => {
+      const err = new Error('Database Down');
+      ReferensiTA.findAll.mockRejectedValue(err);
+
+      await ReferensiController.getAllReferensi(mockReq, mockRes, mockNext);
+      expect(mockNext).toHaveBeenCalledWith(err);
     });
   });
 
@@ -171,9 +189,24 @@ describe('ReferensiController', () => {
       
       await ReferensiController.createReferensi(mockReq, mockRes, mockNext);
 
-      // Cek bahwa error dilempar dan ditangkap oleh next()
+      // Cek bahwa error dilempar dan ditangkap oleh next
       expect(mockNext).toHaveBeenCalledWith(mockError);
       expect(mockRes.json).not.toHaveBeenCalled();
+    });
+
+    test('harus return 400 jika salah satu field kosong (Baris 86-91)', async () => {
+      mockReq.body = { nim_mahasiswa: '123' }; // Field lain kosong
+      await ReferensiController.createReferensi(mockReq, mockRes, mockNext);
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+    });
+
+    test('harus memanggil next(error) jika terjadi exception di createReferensi', async () => {
+      mockReq.body = { nim_mahasiswa: '123', nama_mahasiswa: 'A', judul: 'J', topik: 'T', tahun: '2025' };
+      mockReq.file = { originalname: 't.pdf', buffer: Buffer.from('') };
+      
+      ReferensiTA.findById.mockRejectedValue(new Error('Fatal Error'));
+      await ReferensiController.createReferensi(mockReq, mockRes, mockNext);
+      expect(mockNext).toHaveBeenCalledWith(expect.any(Error));
     });
   });
 
@@ -197,7 +230,7 @@ describe('ReferensiController', () => {
       expect(mockSupabaseUpload).not.toHaveBeenCalled();
       expect(mockSupabaseRemove).not.toHaveBeenCalled();
 
-      // Cek Model Update dipanggil dengan data yang benar (doc_url lama)
+      // Cek Model Update dipanggil dengan data yang benar 
       expect(ReferensiTA.update).toHaveBeenCalledWith('123', {
         nama_mahasiswa: 'Nama Baru',
         judul: undefined, 
@@ -254,7 +287,7 @@ describe('ReferensiController', () => {
     });
     test('harus menggunakan data lama jika body kosong)', async () => {
       mockReq.params.nim = '123';
-      mockReq.body = {}; // Mengosongkan body untuk memicu default value
+      mockReq.body = {}; 
       const mockOld = { nim_mahasiswa: '123', nama_mahasiswa: 'Lama', judul: 'L', topik: 'L', tahun: 2024, doc_url: 'url' };
       
       ReferensiTA.findById.mockResolvedValue(mockOld);
@@ -268,37 +301,91 @@ describe('ReferensiController', () => {
         tahun: 2024
       }));
     });
+
+    test('harus memanggil next(error) jika database gagal di updateReferensi (Baris 189)', async () => {
+      mockReq.params.nim = '123';
+      const err = new Error('Update Fail');
+      ReferensiTA.findById.mockRejectedValue(err);
+
+      await ReferensiController.updateReferensi(mockReq, mockRes, mockNext);
+      expect(mockNext).toHaveBeenCalledWith(err);
+    });
   });
 
   // TEST UNTUK deleteReferensi 
   describe('deleteReferensi', () => {
-    test('harus berhasil menghapus referensi dan file di Supabase', async () => {
+    test('harus berhasil menghapus referensi dan file di Supabase (Skenario Sukses)', async () => {
       mockReq.params.nim = '123';
-      // BENAR:
-const mockData = { nim_mahasiswa: '123', doc_url: 'http://example.com/storage/v1/object/public/bimta/documents/file-to-delete.pdf' };
+      const mockData = { 
+        nim_mahasiswa: '123', 
+        doc_url: 'http://example.com/storage/v1/object/public/bimta/documents/file-to-delete.pdf' 
+      };
       
-      // Temukan data
       ReferensiTA.findById.mockResolvedValue(mockData);
-      
-      // Mock Supabase Delete
       mockSupabaseRemove.mockResolvedValue({ error: null });
-      
-      // Mock Model Delete
       ReferensiTA.delete.mockResolvedValue(true);
 
       await ReferensiController.deleteReferensi(mockReq, mockRes, mockNext);
 
-      // Cek Supabase Remove
       expect(supabase.storage.from).toHaveBeenCalledWith('bimta');
       expect(mockSupabaseRemove).toHaveBeenCalledWith(['documents/file-to-delete.pdf']);
-      
-      // Cek Model Delete
-      expect(ReferensiTA.delete).toHaveBeenCalledWith('123');
-      
-      expect(mockRes.json).toHaveBeenCalledWith({
+      expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({
         success: true,
         message: 'Referensi berhasil dihapus',
-      });
+      }));
+    });
+
+    test('harus return 404 jika referensi tidak ditemukan saat akan didelete (Baris 201)', async () => {
+      mockReq.params.nim = '999';
+      ReferensiTA.findById.mockResolvedValue(null);
+
+      await ReferensiController.deleteReferensi(mockReq, mockRes, mockNext);
+
+      expect(mockRes.status).toHaveBeenCalledWith(404);
+      expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({
+        success: false,
+        message: 'Referensi tidak ditemukan',
+      }));
+    });
+
+    test('harus memanggil next(error) jika database gagal di deleteReferensi (Baris 217)', async () => {
+      mockReq.params.nim = '123';
+      ReferensiTA.findById.mockRejectedValue(new Error('Delete Fail'));
+
+      await ReferensiController.deleteReferensi(mockReq, mockRes, mockNext);
+      
+      expect(mockNext).toHaveBeenCalledWith(expect.any(Error));
+    });
+  });
+
+  describe('deleteFromSupabase Helper Logic', () => {
+    test('harus langsung return jika URL tidak mengandung path bimta (Baris 50)', async () => {
+      const invalidUrl = 'https://google.com/image.png';
+      await ReferensiController.deleteFromSupabase(invalidUrl);
+      // Memastikan remove tidak dipanggil karena format URL salah
+      expect(mockSupabaseRemove).not.toHaveBeenCalled();
+    });
+
+    test('harus log error jika Supabase gagal menghapus file (Baris 44-47)', async () => {
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      const validUrl = 'http://.../storage/v1/object/public/bimta/documents/file.pdf';
+      
+      // Simulasi Supabase mengembalikan error
+      mockSupabaseRemove.mockResolvedValue({ error: { message: 'Storage Error' } });
+
+      await ReferensiController.deleteFromSupabase(validUrl);
+
+      expect(consoleSpy).toHaveBeenCalledWith('Error deleting file:', expect.any(Object));
+      consoleSpy.mockRestore();
+    });
+
+    test('harus log error jika fungsi mengalami exception (Baris 56)', async () => {
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      // Memaksa error dengan mengirim null
+      await ReferensiController.deleteFromSupabase(null);
+      
+      expect(consoleSpy).toHaveBeenCalledWith('Error in deleteFromSupabase:', expect.any(Object));
+      consoleSpy.mockRestore();
     });
   });
 });

@@ -41,11 +41,18 @@ describe('UserController Full Coverage Test', () => {
       expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
     });
 
-    test('harus menangani error di getUsers (Catch Block)', async () => {
+    test('harus menangani error di getUsers', async () => {
       const error = new Error('Database Error');
       User.findAll.mockRejectedValue(error);
       await UserController.getUsers(mockReq, mockRes, mockNext);
       expect(mockNext).toHaveBeenCalledWith(error);
+    });
+
+    test('harus memanggil next(error) jika query gagal (Baris 28)', async () => {
+      const err = new Error('Fail');
+      User.findAll.mockRejectedValue(err);
+      await UserController.getUsers(mockReq, mockRes, mockNext);
+      expect(mockNext).toHaveBeenCalledWith(err);
     });
   });
 
@@ -63,6 +70,15 @@ describe('UserController Full Coverage Test', () => {
       await UserController.getUserById(mockReq, mockRes, mockNext);
       expect(mockRes.status).toHaveBeenCalledWith(404);
     });
+    
+    test('harus menangani error di getUserById', async () => {
+      mockReq.params.userId = '123';
+      const error = new Error('Database Error');
+      User.findById.mockRejectedValue(error); // Memaksa error
+      
+      await UserController.getUserById(mockReq, mockRes, mockNext);
+      expect(mockNext).toHaveBeenCalledWith(error);
+    });
   });
 
   // --- CREATE USER ---
@@ -73,7 +89,19 @@ describe('UserController Full Coverage Test', () => {
       expect(mockRes.status).toHaveBeenCalledWith(400);
     });
 
-    test('harus menghapus file jika User.create gagal (Catch Block)', async () => {
+    test('harus memanggil next(error) jika terjadi kegagalan sistem (Baris 81)', async () => {
+      mockReq.body = { user_id: '1', nama: 'A', no_whatsapp: '1', role: 'mahasiswa', password: '1' };
+      const error = new Error('Database Error');
+      
+      // Paksa pencarian ID melempar error agar masuk ke block catch
+      User.findById.mockRejectedValue(error);
+
+      await UserController.createUser(mockReq, mockRes, mockNext);
+
+      expect(mockNext).toHaveBeenCalledWith(error);
+    });
+
+    test('harus menghapus file jika User.create gagal', async () => {
       mockReq.body = { user_id: '1', nama: 'A', no_whatsapp: '1', role: 'mahasiswa', password: '1' };
       mockReq.file = { path: 'temp/photo.jpg' };
       User.findById.mockResolvedValue(null);
@@ -83,6 +111,55 @@ describe('UserController Full Coverage Test', () => {
       expect(fs.unlinkSync).toHaveBeenCalledWith('temp/photo.jpg');
       expect(mockNext).toHaveBeenCalled();
     });
+
+    test('harus return 400 jika role bukan mahasiswa/dosen (Baris 72)', async () => {
+      mockReq.body = { user_id: '1', nama: 'A', no_whatsapp: '1', role: 'admin', password: '1' };
+      await UserController.createUser(mockReq, mockRes, mockNext);
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+    });
+
+    describe('resetPassword', () => {
+    test('harus berhasil reset password (Happy Path)', async () => {
+      mockReq.params.userId = '123';
+      mockReq.body = { new_password: 'passwordBaru123' };
+      
+      User.findById.mockResolvedValue({ user_id: '123' });
+      User.updatePassword.mockResolvedValue(true);
+
+      await UserController.resetPassword(mockReq, mockRes, mockNext);
+      
+      expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({ 
+        message: 'Password berhasil direset' 
+      }));
+    });
+
+    test('harus return 400 jika password baru tidak diisi', async () => {
+      mockReq.params.userId = '123';
+      mockReq.body = {}; // Kosong
+
+      await UserController.resetPassword(mockReq, mockRes, mockNext);
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+    });
+
+    test('harus return 404 jika user tidak ditemukan (Baris 167)', async () => {
+      mockReq.params.userId = '999';
+      mockReq.body = { new_password: 'passwordBaru' };
+      User.findById.mockResolvedValue(null);
+
+      await UserController.resetPassword(mockReq, mockRes, mockNext);
+      expect(mockRes.status).toHaveBeenCalledWith(404);
+    });
+
+    test('harus menangani error database di resetPassword (Baris 179)', async () => {
+      mockReq.params.userId = '123';
+      mockReq.body = { new_password: 'passwordBaru' };
+      const error = new Error('Database Error');
+      User.findById.mockRejectedValue(error);
+
+      await UserController.resetPassword(mockReq, mockRes, mockNext);
+      expect(mockNext).toHaveBeenCalledWith(error);
+    });
+  });
   });
 
   // --- UPDATE USER ---
@@ -96,6 +173,12 @@ describe('UserController Full Coverage Test', () => {
       await UserController.updateUser(mockReq, mockRes, mockNext);
       expect(User.update).toHaveBeenCalledWith('1', expect.objectContaining({ nama: 'Lama' }));
     });
+    test('updateUser harus return 404 jika user tidak ditemukan', async () => {
+      mockReq.params.id = '999';
+      User.findById.mockResolvedValue(null);
+      await UserController.updateUser(mockReq, mockRes, mockNext);
+      expect(mockRes.status).toHaveBeenCalledWith(404);
+    });
 
     test('harus hapus file baru jika user tidak ditemukan', async () => {
       mockReq.params.userId = '999';
@@ -104,6 +187,38 @@ describe('UserController Full Coverage Test', () => {
 
       await UserController.updateUser(mockReq, mockRes, mockNext);
       expect(fs.unlinkSync).toHaveBeenCalledWith('temp/new.jpg');
+    });
+    test('harus return 404 jika user tidak ditemukan saat update/delete', async () => {
+      mockReq.params.id = '999';
+      // Simulasi model mengembalikan null atau rowCount 0
+      User.findById.mockResolvedValue(null); 
+
+      await UserController.updateUser(mockReq, mockRes, mockNext);
+
+      expect(mockRes.status).toHaveBeenCalledWith(404);
+      expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({ success: false }));
+    });
+
+    test('harus menghapus file yang baru diupload jika user tidak ditemukan (Baris 108-110)', async () => {
+      mockReq.params.userId = '999'; // ID tidak ada
+      mockReq.file = { path: 'temp/new-photo.jpg' };
+      User.findById.mockResolvedValue(null);
+
+      await UserController.updateUser(mockReq, mockRes, mockNext);
+
+      // Memastikan fs.unlinkSync dipanggil untuk file baru tersebut
+      expect(fs.unlinkSync).toHaveBeenCalledWith('temp/new-photo.jpg');
+      expect(mockRes.status).toHaveBeenCalledWith(404);
+    });
+
+    test('harus menangani error di catch block updateUser (Baris 150)', async () => {
+      mockReq.params.userId = '1';
+      const error = new Error('Update Error');
+      User.findById.mockRejectedValue(error);
+
+      await UserController.updateUser(mockReq, mockRes, mockNext);
+
+      expect(mockNext).toHaveBeenCalledWith(error);
     });
   });
 
@@ -118,7 +233,7 @@ describe('UserController Full Coverage Test', () => {
       expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
     });
 
-    test('harus menangani error di resetPassword (Catch Block - FIX)', async () => {
+    test('harus menangani error di resetPassword', async () => {
       // PENTING: Berikan body agar lolos validasi "if (!new_password)"
       mockReq.params.userId = '1';
       mockReq.body = { new_password: 'valid_password' }; 
@@ -141,8 +256,14 @@ describe('UserController Full Coverage Test', () => {
       expect(fs.unlinkSync).toHaveBeenCalled();
       expect(User.delete).toHaveBeenCalledWith('123');
     });
+    test('deleteUser harus return 404 jika user tidak ditemukan', async () => {
+      mockReq.params.id = '999';
+      User.findById.mockResolvedValue(null);
+      await UserController.deleteUser(mockReq, mockRes, mockNext);
+      expect(mockRes.status).toHaveBeenCalledWith(404);
+    });
 
-    test('harus sukses delete user yang menggunakan foto default (tanpa unlink kustom)', async () => {
+    test('harus sukses delete user yang menggunakan foto default', async () => {
       mockReq.params.userId = '123';
       User.findById.mockResolvedValue({ photo_url: 'default-avatar.png' });
       
@@ -151,11 +272,23 @@ describe('UserController Full Coverage Test', () => {
       expect(User.delete).toHaveBeenCalled();
     });
     
-    test('harus menangani error di deleteUser (Catch Block)', async () => {
+    test('harus menangani error di deleteUser', async () => {
       const error = new Error('Delete Error');
       User.findById.mockRejectedValue(error);
       await UserController.deleteUser(mockReq, mockRes, mockNext);
       expect(mockNext).toHaveBeenCalledWith(error);
+    });
+
+    test('harus return 404 jika user yang akan dihapus tidak ada (Baris 173-176)', async () => {
+      mockReq.params.userId = '404';
+      User.findById.mockResolvedValue(null);
+
+      await UserController.deleteUser(mockReq, mockRes, mockNext);
+
+      expect(mockRes.status).toHaveBeenCalledWith(404);
+      expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({
+        message: 'User tidak ditemukan'
+      }));
     });
   });
   describe('userController Branch Coverage Boost', () => {
