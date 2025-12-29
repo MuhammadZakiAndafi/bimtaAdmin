@@ -7,3 +7,6 @@ dist/
 build/
 test-results
 coverage/
+test-results/
+e2e-report/
+compatibility-report/

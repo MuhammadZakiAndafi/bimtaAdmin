@@ -1,45 +1,59 @@
 const { defineConfig, devices } = require('@playwright/test');
 
 module.exports = defineConfig({
-  testDir: './tests',
-  fullyParallel: false,
-  forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
-  workers: 1, // Penting: serial execution
-  reporter: [
-    ['html'],
-    ['json', { outputFile: 'test-results/results.json' }],
-    ['list']
-  ],
+  testDir: './tests/e2e',
   
-  // Load .env.test
-  use: {
-    baseURL: process.env.API_BASE_URL || 'http://localhost:5000',
-    trace: 'on-first-retry',
-    screenshot: 'only-on-failure',
-    video: 'retain-on-failure',
+  // REDUCED timeouts for speed
+  timeout: 30000,      
+  expect: {
+    timeout: 5000      
   },
 
-  // Global setup and teardown
-  globalSetup: require.resolve('./tests/setup/global-setup.js'),
-  globalTeardown: require.resolve('./tests/setup/global-teardown.js'),
+  fullyParallel: false,
+  forbidOnly: !!process.env.CI,
+  retries: 0,          
+  workers: 1,
+  
+  // Minimal reporter
+  reporter: [
+    ['list'],
+    ['html', { outputFolder: 'e2e-report', open: 'never' }]
+  ],
+
+  use: {
+    baseURL: 'http://localhost:3000',
+    headless: true,
+    
+    // ALL DISABLED for maximum speed
+    screenshot: 'off',
+    video: 'off',
+    trace: 'off',
+    
+    viewport: { width: 1280, height: 720 },  
+    ignoreHTTPSErrors: true,
+    
+    // AGGRESSIVE timeouts
+    actionTimeout: 8000,        
+    navigationTimeout: 15000,  
+  },
 
   projects: [
     {
-      name: 'api-tests',
-      testMatch: /.*\.api\.spec\.js/,
-      use: { ...devices['Desktop Chrome'] },
+      name: 'e2e',
+      use: { 
+        ...devices['Desktop Chrome'],
+        channel: 'chrome',
+        launchOptions: {
+          args: [
+            '--disable-web-security',
+            '--disable-features=IsolateOrigins,site-per-process',
+            '--disable-blink-features=AutomationControlled'
+          ]
+        }
+      },
     },
   ],
 
-  // Auto-start server sebelum test
-  webServer: {
-    command: 'npm run dev',
-    url: 'http://localhost:5000/api/health',
-    reuseExistingServer: !process.env.CI,
-    timeout: 120 * 1000,
-    env: {
-      NODE_ENV: 'test',
-    },
-  },
+  globalSetup: require.resolve('./tests/helpers/global-setup.js'),
+  globalTeardown: require.resolve('./tests/helpers/global-teardown.js'),
 });
