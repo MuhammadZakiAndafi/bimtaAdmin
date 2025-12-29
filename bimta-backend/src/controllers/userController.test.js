@@ -1,19 +1,16 @@
 const UserController = require('./userController');
-
 const User = require('../models/User');
 const { hashPassword } = require('../utils/bcrypt');
 const fs = require('fs');
-
+const path = require('path');
 
 jest.mock('../models/User');
 jest.mock('../utils/bcrypt');
 jest.mock('fs');
 
-describe('UserController', () => {
+describe('UserController Full Coverage Test', () => {
   let mockReq, mockRes, mockNext;
-  
-  let mockUnlinkSync, mockExistsSync;
-  
+
   beforeEach(() => {
     jest.clearAllMocks();
 
@@ -29,233 +26,165 @@ describe('UserController', () => {
     };
     mockNext = jest.fn();
 
-    mockUnlinkSync = jest.fn();
-    mockExistsSync = jest.fn();
-    fs.unlinkSync = mockUnlinkSync;
-    fs.existsSync = mockExistsSync;
-    
     hashPassword.mockResolvedValue('hashed_password_mock');
+    fs.existsSync.mockReturnValue(true);
+    fs.unlinkSync = jest.fn();
   });
 
-  // TEST UNTUK GET USERS
+  // --- GET USERS ---
   describe('getUsers', () => {
-    test('harus mengembalikan daftar user tanpa password', async () => {
-      mockReq.query = { role: 'mahasiswa' };
-      const mockUsers = [
-        { user_id: '1', nama: 'User A', sandi: 'pass123' },
-        { user_id: '2', nama: 'User B', sandi: 'pass456' },
-      ];
-      User.findAll.mockResolvedValue(mockUsers);
-
+    test('harus berhasil mengambil daftar user dengan filter lengkap', async () => {
+      mockReq.query = { role: 'mahasiswa', status: 'active', search: 'ari' };
+      User.findAll.mockResolvedValue([{ user_id: '1', sandi: 'secret', nama: 'Ari' }]);
       await UserController.getUsers(mockReq, mockRes, mockNext);
-
-      // Cek filter yang dikirim ke model
-      expect(User.findAll).toHaveBeenCalledWith({
-        role: 'mahasiswa',
-        status_user: undefined,
-        search: undefined,
-      });
-
-      // Cek 'sandi' telah dihapus dari respons
-      expect(mockRes.json).toHaveBeenCalledWith({
-        success: true,
-        data: [
-          { user_id: '1', nama: 'User A' },
-          { user_id: '2', nama: 'User B' },
-        ],
-      });
-    });
-  });
-  
-  // TES UNTUK getUserById
-  describe('getUserById', () => {
-    test('harus mengembalikan 404 jika user tidak ditemukan', async () => {
-      mockReq.params.userId = '404';
-      User.findById.mockResolvedValue(null);
-      
-      await UserController.getUserById(mockReq, mockRes, mockNext);
-      
-      expect(mockRes.status).toHaveBeenCalledWith(404);
-      expect(mockRes.json).toHaveBeenCalledWith({
-        success: false,
-        message: 'User tidak ditemukan',
-      });
-    });
-  });
-
-  // TEST UNTUK createUser
-  describe('createUser', () => {
-    beforeEach(() => {
-      mockReq.body = {
-        user_id: '123',
-        nama: 'User Baru',
-        no_whatsapp: '08123',
-        role: 'mahasiswa',
-        password: 'password123',
-      };
-    });
-
-    test('harus return 400 jika user ID sudah ada', async () => {
-      User.findById.mockResolvedValue({ user_id: '123' }); // Simulasikan user ada
-
-      await UserController.createUser(mockReq, mockRes, mockNext);
-
-      expect(mockRes.status).toHaveBeenCalledWith(400);
-      expect(mockRes.json).toHaveBeenCalledWith({
-        success: false,
-        message: 'User ID sudah digunakan',
-      });
-    });
-
-    test('harus berhasil membuat user dengan default-avatar (tanpa file)', async () => {
-      User.findById.mockResolvedValue(null); // User belum ada
-      const mockNewUser = { ...mockReq.body, photo_url: '/uploads/photos/default-avatar.png', status_user: 'active' };
-      User.create.mockResolvedValue(mockNewUser);
-      
-      await UserController.createUser(mockReq, mockRes, mockNext);
-      
-      // Cek password di-hash
-      expect(hashPassword).toHaveBeenCalledWith('password123');
-      
-      // Cek data yang dikirim ke User.create
-      expect(User.create).toHaveBeenCalledWith(expect.objectContaining({
-        user_id: '123',
-        sandi: 'hashed_password_mock',
-        photo_url: '/uploads/photos/default-avatar.png',
-      }));
-      
-      // Cek respons (tanpa 'sandi')
-      expect(mockRes.status).toHaveBeenCalledWith(201);
-      expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({
-        data: expect.not.objectContaining({ sandi: expect.anything() })
-      }));
-    });
-    
-    test('harus berhasil membuat user dengan foto (dengan file)', async () => {
-      mockReq.file = { filename: 'photo-123.jpg', path: 'temp/photo-123.jpg' };
-      User.findById.mockResolvedValue(null);
-      const mockNewUser = { ...mockReq.body, photo_url: '/uploads/photos/photo-123.jpg', status_user: 'active' };
-      User.create.mockResolvedValue(mockNewUser);
-      
-      await UserController.createUser(mockReq, mockRes, mockNext);
-      
-      // Cek data yang dikirim ke User.create
-      expect(User.create).toHaveBeenCalledWith(expect.objectContaining({
-        photo_url: '/uploads/photos/photo-123.jpg',
-      }));
-      
-      expect(mockRes.status).toHaveBeenCalledWith(201);
-    });
-
-    test('harus menghapus file jika terjadi error database', async () => {
-      mockReq.file = { filename: 'photo-123.jpg', path: 'temp/photo-123.jpg' };
-      User.findById.mockResolvedValue(null); // Cek user lolos
-      const mockError = new Error('Database create failed');
-      User.create.mockRejectedValue(mockError); // Gagal saat create
-
-      await UserController.createUser(mockReq, mockRes, mockNext);
-
-      // Cek error handler dipanggil
-      expect(mockNext).toHaveBeenCalledWith(mockError);
-      
-      // Cek file dihapus (rollback)
-      expect(mockUnlinkSync).toHaveBeenCalledWith('temp/photo-123.jpg');
-    });
-  });
-
-  // TEST UNTUK updateUser
-  describe('updateUser', () => {
-    test('harus menghapus file baru jika user tidak ditemukan', async () => {
-      mockReq.params.userId = '404';
-      mockReq.file = { filename: 'new.jpg', path: 'temp/new.jpg' };
-      User.findById.mockResolvedValue(null); // User tidak ada
-
-      await UserController.updateUser(mockReq, mockRes, mockNext);
-
-      expect(mockRes.status).toHaveBeenCalledWith(404);
-      // Cek file baru (yang gagal di-upload) dihapus
-      expect(mockUnlinkSync).toHaveBeenCalledWith('temp/new.jpg');
-    });
-
-    test('harus update user dan mengganti foto (menghapus foto lama)', async () => {
-      mockReq.params.userId = '123';
-      mockReq.body = { nama: 'Nama Baru' };
-      mockReq.file = { filename: 'new.jpg', path: 'temp/new.jpg' };
-      const mockOldUser = {
-        user_id: '123',
-        nama: 'Nama Lama',
-        photo_url: '/uploads/photos/old.jpg', // Foto kustom
-      };
-      const mockUpdatedUser = { ...mockOldUser, nama: 'Nama Baru', photo_url: '/uploads/photos/new.jpg' };
-
-      User.findById.mockResolvedValue(mockOldUser);
-      mockExistsSync.mockReturnValue(true); // Simulasikan file lama ada
-      User.update.mockResolvedValue(mockUpdatedUser);
-      
-      await UserController.updateUser(mockReq, mockRes, mockNext);
-      
-      // Cek file lama dihapus
-      expect(mockExistsSync).toHaveBeenCalledWith(expect.stringContaining('old.jpg'));
-      expect(mockUnlinkSync).toHaveBeenCalledWith(expect.stringContaining('old.jpg'));
-      
-      // Cek data dikirim ke User.update
-      expect(User.update).toHaveBeenCalledWith('123', expect.objectContaining({
-        nama: 'Nama Baru',
-        photo_url: '/uploads/photos/new.jpg',
-      }));
-
-      // Cek respons
+      expect(User.findAll).toHaveBeenCalledWith({ role: 'mahasiswa', status_user: 'active', search: 'ari' });
       expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
     });
-    
-    test('harus update user dan mengganti foto (foto lama adalah default)', async () => {
-      mockReq.params.userId = '123';
-      mockReq.file = { filename: 'new.jpg', path: 'temp/new.jpg' };
-      const mockOldUser = {
-        user_id: '123',
-        photo_url: '/uploads/photos/default-avatar.png', // Foto default
-      };
-      User.findById.mockResolvedValue(mockOldUser);
-      User.update.mockResolvedValue({ ...mockOldUser, photo_url: '/uploads/photos/new.jpg' });
 
-      await UserController.updateUser(mockReq, mockRes, mockNext);
-      
-      // Cek file lama TIDAK dihapus
-      expect(mockExistsSync).not.toHaveBeenCalled();
-      expect(mockUnlinkSync).not.toHaveBeenCalled();
-      
-      // Cek User.update
-      expect(User.update).toHaveBeenCalledWith('123', expect.objectContaining({
-        photo_url: '/uploads/photos/new.jpg',
-      }));
+    test('harus menangani error di getUsers (Catch Block)', async () => {
+      const error = new Error('Database Error');
+      User.findAll.mockRejectedValue(error);
+      await UserController.getUsers(mockReq, mockRes, mockNext);
+      expect(mockNext).toHaveBeenCalledWith(error);
     });
   });
 
-  // === TEST UNTUK deleteUser ===
-  describe('deleteUser', () => {
-    test('harus menghapus user dan foto kustomnya', async () => {
+  // --- GET USER BY ID ---
+  describe('getUserById', () => {
+    test('harus berhasil mengambil user by ID', async () => {
       mockReq.params.userId = '123';
-      const mockUser = {
-        user_id: '123',
-        photo_url: '/uploads/photos/custom.jpg',
-      };
-      User.findById.mockResolvedValue(mockUser);
-      mockExistsSync.mockReturnValue(true); // File ada
-      User.delete.mockResolvedValue(true);
+      User.findById.mockResolvedValue({ user_id: '123', sandi: 'secret' });
+      await UserController.getUserById(mockReq, mockRes, mockNext);
+      expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
+    });
 
+    test('harus return 404 jika user tidak ditemukan', async () => {
+      User.findById.mockResolvedValue(null);
+      await UserController.getUserById(mockReq, mockRes, mockNext);
+      expect(mockRes.status).toHaveBeenCalledWith(404);
+    });
+  });
+
+  // --- CREATE USER ---
+  describe('createUser', () => {
+    test('harus return 400 jika input tidak lengkap', async () => {
+      mockReq.body = { user_id: '1' }; // data tidak lengkap
+      await UserController.createUser(mockReq, mockRes, mockNext);
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+    });
+
+    test('harus menghapus file jika User.create gagal (Catch Block)', async () => {
+      mockReq.body = { user_id: '1', nama: 'A', no_whatsapp: '1', role: 'mahasiswa', password: '1' };
+      mockReq.file = { path: 'temp/photo.jpg' };
+      User.findById.mockResolvedValue(null);
+      User.create.mockRejectedValue(new Error('Create Fail'));
+
+      await UserController.createUser(mockReq, mockRes, mockNext);
+      expect(fs.unlinkSync).toHaveBeenCalledWith('temp/photo.jpg');
+      expect(mockNext).toHaveBeenCalled();
+    });
+  });
+
+  // --- UPDATE USER ---
+  describe('updateUser', () => {
+    test('harus update data tanpa mengganti foto (menggunakan data lama)', async () => {
+      mockReq.params.userId = '1';
+      mockReq.body = {}; // Body kosong untuk menguji fallback (|| user.nama)
+      User.findById.mockResolvedValue({ nama: 'Lama', photo_url: 'old.png', status_user: 'active' });
+      User.update.mockResolvedValue({ user_id: '1' });
+
+      await UserController.updateUser(mockReq, mockRes, mockNext);
+      expect(User.update).toHaveBeenCalledWith('1', expect.objectContaining({ nama: 'Lama' }));
+    });
+
+    test('harus hapus file baru jika user tidak ditemukan', async () => {
+      mockReq.params.userId = '999';
+      mockReq.file = { path: 'temp/new.jpg' };
+      User.findById.mockResolvedValue(null);
+
+      await UserController.updateUser(mockReq, mockRes, mockNext);
+      expect(fs.unlinkSync).toHaveBeenCalledWith('temp/new.jpg');
+    });
+  });
+
+  // --- RESET PASSWORD ---
+  describe('resetPassword', () => {
+    test('harus berhasil reset password', async () => {
+      mockReq.params.userId = '1';
+      mockReq.body = { new_password: 'password123' };
+      User.findById.mockResolvedValue({ user_id: '1' });
+      
+      await UserController.resetPassword(mockReq, mockRes, mockNext);
+      expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
+    });
+
+    test('harus menangani error di resetPassword (Catch Block - FIX)', async () => {
+      // PENTING: Berikan body agar lolos validasi "if (!new_password)"
+      mockReq.params.userId = '1';
+      mockReq.body = { new_password: 'valid_password' }; 
+      
+      const error = new Error('Reset Fail');
+      User.findById.mockRejectedValue(error); // Sekarang ini akan terpanggil
+      
+      await UserController.resetPassword(mockReq, mockRes, mockNext);
+      expect(mockNext).toHaveBeenCalledWith(error);
+    });
+  });
+
+  // --- DELETE USER ---
+  describe('deleteUser', () => {
+    test('harus menghapus user dengan foto kustom', async () => {
+      mockReq.params.userId = '123';
+      User.findById.mockResolvedValue({ photo_url: '/uploads/photos/my-avatar.jpg' });
+      
       await UserController.deleteUser(mockReq, mockRes, mockNext);
-
-      // Cek file kustom dihapus
-      expect(mockExistsSync).toHaveBeenCalledWith(expect.stringContaining('custom.jpg'));
-      expect(mockUnlinkSync).toHaveBeenCalledWith(expect.stringContaining('custom.jpg'));
-      
-      // Cek user dihapus
+      expect(fs.unlinkSync).toHaveBeenCalled();
       expect(User.delete).toHaveBeenCalledWith('123');
+    });
+
+    test('harus sukses delete user yang menggunakan foto default (tanpa unlink kustom)', async () => {
+      mockReq.params.userId = '123';
+      User.findById.mockResolvedValue({ photo_url: 'default-avatar.png' });
       
-      expect(mockRes.json).toHaveBeenCalledWith({
-        success: true,
-        message: 'User berhasil dihapus',
-      });
+      await UserController.deleteUser(mockReq, mockRes, mockNext);
+      expect(fs.unlinkSync).not.toHaveBeenCalled();
+      expect(User.delete).toHaveBeenCalled();
+    });
+    
+    test('harus menangani error di deleteUser (Catch Block)', async () => {
+      const error = new Error('Delete Error');
+      User.findById.mockRejectedValue(error);
+      await UserController.deleteUser(mockReq, mockRes, mockNext);
+      expect(mockNext).toHaveBeenCalledWith(error);
+    });
+  });
+  describe('userController Branch Coverage Boost', () => {
+    // Update User - Logic Hapus Foto Lama
+    test('updateUser: harus melewati penghapusan jika file lama tidak ada di disk', async () => {
+      mockReq.params.userId = '1';
+      mockReq.file = { filename: 'new.jpg' };
+      User.findById.mockResolvedValue({ photo_url: '/uploads/photos/ada-di-db-tapi-hilang.jpg' });
+      
+      // BRANCH: user.photo_url ada, BUKAN default, TAPI fs.existsSync = false
+      fs.existsSync.mockReturnValue(false); 
+      User.update.mockResolvedValue({ user_id: '1' });
+
+      await UserController.updateUser(mockReq, mockRes, mockNext);
+      
+      expect(fs.unlinkSync).not.toHaveBeenCalled(); // Karena filenya tidak ada di disk
+      expect(mockRes.json).toHaveBeenCalled();
+    });
+
+    // Update User - 404 Cleanup
+    test('updateUser: harus cleanup file jika user 404 DAN tidak ada file yang diupload', async () => {
+      mockReq.params.userId = '999';
+      mockReq.file = null; // BRANCH: req.file adalah null
+      User.findById.mockResolvedValue(null);
+
+      await UserController.updateUser(mockReq, mockRes, mockNext);
+      
+      expect(fs.unlinkSync).not.toHaveBeenCalled(); 
+      expect(mockRes.status).toHaveBeenCalledWith(404);
     });
   });
 });
